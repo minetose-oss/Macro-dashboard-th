@@ -3,7 +3,7 @@ name: Update macro data (server-side)
 on:
   schedule:
     - cron: "0 * * * *"   # รันทุกชั่วโมง (UTC)
-  workflow_dispatch:      # กด Run เองได้ครั้งแรก
+  workflow_dispatch:
 
 jobs:
   build:
@@ -13,14 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build data.json (Node 20)
+      - name: Use Node 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+
       - name: Generate data.json
         run: |
-          echo "Using Node version:" && node -v
+          echo "Node version:" && node -v
           cat > build_data.mjs <<'EOF'
           import { writeFile } from 'fs/promises';
 
@@ -80,8 +80,7 @@ jobs:
               const arr = j?.quoteResponse?.result || [];
               for(const q of arr){ if(typeof q.regularMarketPrice === 'number') return {last:q.regularMarketPrice, source:'yahoo'}; }
             }catch(e){}
-            // Fallback: FRED USD Broad
-            const s = await fredSeries('DTWEXBGS');
+            const s = await fredSeries('DTWEXBGS');  // Fallback: USD Broad
             return { last: s.last, delta: s.delta, source: 'DTWEXBGS' };
           }
 
