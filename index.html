@@ -3,47 +3,38 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>แดชบอร์ดมาโคร — LIVE (ภาษาไทย) v6</title>
+<title>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v6-proxy</title>
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{ --bg:#0b0c10; --panel:#12151c; --line:#1f2430; --txt:#e5e7eb; --muted:#94a3b8; --brand:#a3bffa; --good:#22c55e; --bad:#ef4444;}
   *{box-sizing:border-box}
-  body{font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans Thai","Noto Sans",sans-serif; margin:0; background:var(--bg); color:var(--txt)}
-  header{padding:16px 20px; display:flex; align-items:center; justify-content:space-between; background:#111317; border-bottom:1px solid var(--line)}
-  h1{font-size:18px; margin:0; letter-spacing:0.4px; color:#cbd5e1}
-  .meta{font-size:12px; color:var(--muted)}
-  .badge{display:inline-block; background:#1f2937; color:#e5e7eb; padding:3px 8px; border-radius:999px; font-size:11px; margin-left:8px}
-  .snap-grid{display:grid; grid-template-columns: repeat(7, 1fr); gap:12px; padding:14px}
-  .snap{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px}
-  .snap .label{font-size:12px; color:#a3bffa; margin-bottom:6px}
-  .snap .value{font-size:20px; font-weight:700; letter-spacing:0.3px}
-  .snap .delta{font-size:12px; margin-top:2px}
-  .grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:14px; padding:14px}
-  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px}
-  .card h2{font-size:14px; margin:0 0 8px 0; color:var(--brand)}
-  .row{display:flex; gap:14px; padding:0 14px 14px 14px}
+  body{font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans Thai","Noto Sans",sans-serif;margin:0;background:var(--bg);color:var(--txt)}
+  header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;background:#111317;border-bottom:1px solid var(--line)}
+  h1{font-size:18px;margin:0;color:#cbd5e1}
+  .meta{font-size:12px;color:var(--muted)}
+  .badge{display:inline-block;background:#1f2937;color:#e5e7eb;padding:3px 8px;border-radius:999px;font-size:11px;margin-left:8px}
+  .snap-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;padding:14px}
+  .snap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .snap .label{font-size:12px;color:#a3bffa;margin-bottom:6px}
+  .snap .value{font-size:20px;font-weight:700}
+  .snap .delta{font-size:12px;margin-top:2px}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .card h2{font-size:14px;margin:0 0 8px 0;color:var(--brand)}
+  .row{display:flex;gap:14px;padding:0 14px 14px 14px}
   .col{flex:1}
-  .footer{padding:10px 16px; font-size:12px; color:#64748b}
-  iframe{width:100%; border:0; border-radius:8px; height:420px}
-  #updated{font-weight:600; color:#e5e7eb}
-  a{color:#93c5fd; text-decoration:none} a:hover{text-decoration:underline}
-  .uploader{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:8px}
-  input[type=file]{background:#0f172a; color:#cbd5e1; border:1px solid #263042; border-radius:8px; padding:6px}
-  button{background:#1f2937; color:#e5e7eb; border:1px solid #334155; border-radius:8px; padding:6px 10px; cursor:pointer}
-  button:hover{background:#26303f}
-  @media (max-width: 1280px){ .snap-grid{grid-template-columns: repeat(4, 1fr);} }
-  @media (max-width: 780px){ .grid{grid-template-columns:1fr} .row{flex-direction:column} .snap-grid{grid-template-columns: repeat(2, 1fr);} }
+  .footer{padding:10px 16px;font-size:12px;color:#64748b}
+  @media (max-width:1280px){.snap-grid{grid-template-columns:repeat(4,1fr)}}
+  @media (max-width:780px){.grid{grid-template-columns:1fr}.row{flex-direction:column}.snap-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 <header>
   <div>
-    <h1>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v6</h1>
-    <div class="meta">
-      อัปเดตล่าสุด: <span id="updated">กำลังดึงข้อมูล…</span>
-      <span class="badge">รีเฟรชอัตโนมัติทุก 5 นาที</span>
-    </div>
+    <h1>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v6-proxy</h1>
+    <div class="meta">อัปเดตล่าสุด: <span id="updated">กำลังดึงข้อมูล…</span>
+      <span class="badge">รีเฟรชอัตโนมัติทุก 5 นาที</span></div>
   </div>
 </header>
 
@@ -58,127 +49,55 @@
 </section>
 
 <div class="grid">
-  <div class="card">
-    <h2>VIX (CBOE) — เส้นเวลา (FRED: VIXCLS)</h2>
-    <div id="chart_vix" style="height:360px;"></div>
-  </div>
-  <div class="card">
-    <h2>ผลตอบแท้จริง 10 ปี (FRED: DFII10)</h2>
-    <div id="chart_real" style="height:360px;"></div>
-  </div>
-  <div class="card">
-    <h2>Credit OAS: HY vs BBB (FRED)</h2>
-    <div id="chart_oas" style="height:360px;"></div>
-  </div>
-  <div class="card">
-    <h2>ดอลลาร์สหรัฐ (DXY) — วิดเจ็ตเรียลไทม์</h2>
-    <div class="tradingview-widget-container">
-      <div id="tradingview_dxy"></div>
-    </div>
-  </div>
+  <div class="card"><h2>VIX (FRED: VIXCLS)</h2><div id="chart_vix" style="height:360px;"></div></div>
+  <div class="card"><h2>ผลตอบแท้จริง 10 ปี (DFII10)</h2><div id="chart_real" style="height:360px;"></div></div>
+  <div class="card"><h2>Credit OAS: HY vs BBB</h2><div id="chart_oas" style="height:360px;"></div></div>
+  <div class="card"><h2>NFCI / ANFCI (Chicago Fed)</h2><div id="chart_nfci" style="height:360px;"></div></div>
 </div>
 
-<div class="grid">
-  <div class="card">
-    <h2>NFCI (Chicago Fed)</h2>
-    <div id="chart_nfci" style="height:320px;"></div>
-  </div>
-  <div class="card">
-    <h2>ANFCI (Adjusted NFCI)</h2>
-    <div id="chart_anfci" style="height:320px;"></div>
-  </div>
-</div>
+<div class="footer">© Macro Dashboard TH — ใช้เพื่อการวิเคราะห์เท่านั้น</div>
 
-<div class="grid">
-  <div class="card">
-    <h2>อัปโหลด ICI Mutual Fund Flows (CSV/XLSX)</h2>
-    <div class="meta">คอลัมน์: <code>Week_End, Equity_Flows, Bond_Flows, Total_Flows</code> หน่วย $ พันล้าน</div>
-    <div class="uploader">
-      <input type="file" id="file_ici" accept=".csv,.xlsx"/>
-      <button onclick="loadICI()">แสดงกราฟ ICI</button>
-    </div>
-    <div id="chart_ici" style="height:320px; margin-top:8px;"></div>
-  </div>
-  <div class="card">
-    <h2>อัปโหลด ETF Flows (CSV/XLSX)</h2>
-    <div class="meta">คอลัมน์: <code>Week_End, Total_ETF</code> หน่วย $ พันล้าน</div>
-    <div class="uploader">
-      <input type="file" id="file_etf" accept=".csv,.xlsx"/>
-      <button onclick="loadETF()">แสดงกราฟ ETF</button>
-    </div>
-    <div id="chart_etf" style="height:320px; margin-top:8px;"></div>
-  </div>
-</div>
-
-<div class="row">
-  <div class="card col">
-    <h2>VIX — วิดเจ็ตเรียลไทม์</h2>
-    <div class="tradingview-widget-container">
-      <div id="tradingview_vix"></div>
-    </div>
-  </div>
-  <div class="card col">
-    <h2>แหล่งข้อมูล</h2>
-    <div style="line-height:1.7">
-      • FRED: VIXCLS, DFII10, BAMLH0A0HYM2, BAMLC0A4CBBB<br/>
-      • Chicago Fed: NFCI/ANFCI CSV<br/>
-      • DXY & VIX (Realtime): TradingView<br/>
-      • ETF/ICI: อัปโหลด CSV/XLSX<br/>
-    </div>
-  </div>
-</div>
-
-<div class="footer">
-  © Live Macro Dashboard (Thai v6). ข้อมูลบางส่วนอาจมีดีเลย์ / ใช้เพื่อการวิเคราะห์เท่านั้น.
-</div>
-
-<script src="https://s3.tradingview.com/tv.js"></script>
 <script>
-  new TradingView.widget({ "autosize": true, "symbol": "TVC:DXY", "interval": "60", "timezone": "Etc/UTC", "theme": "dark", "style": "1", "locale": "th", "container_id": "tradingview_dxy" });
-  new TradingView.widget({ "autosize": true, "symbol": "CBOE:VIX", "interval": "60", "timezone": "Etc/UTC", "theme": "dark", "style": "1", "locale": "th", "container_id": "tradingview_vix" });
-</script>
+/* ====== PROXY HELPERS (แก้ CORS) ====== */
+const PROXY = "https://r.jina.ai/http://"; // proxy สาธารณะ (อ่านเท่านั้น)
+function viaProxy(url){
+  // รับทั้ง http/https — บังคับให้ผ่าน http สำหรับ proxy ตัวนี้
+  const u = new URL(url);
+  return PROXY + u.host + u.pathname + (u.search||"");
+}
 
-<!-- ====== PROXY + FETCH (แก้ CORS) ====== -->
-<script>
+/* ====== CSV/UTILS ====== */
 function parseCSV(text){
   const lines=text.trim().split(/\r?\n/);
   const header=lines.shift().split(',').map(s=>s.trim());
   const rows=lines.map(line=>line.split(',').map(s=>s.trim()));
   return {header,rows};
 }
-// ใช้ proxy สาธารณะของ r.jina.ai เพื่อใส่ CORS header
-function prox(url){ return 'https://r.jina.ai/http://' + url.replace(/^https?:\/\//,''); }
-
 async function fetchCSV(url){
-  const r=await fetch(prox(url));
-  if(!r.ok) throw new Error('Fetch failed '+r.status);
-  const txt=await r.text();
-  return parseCSV(txt);
+  const r=await fetch(viaProxy(url));
+  if(!r.ok) throw new Error("fetch "+r.status);
+  return parseCSV(await r.text());
+}
+function computeWoW(dates,vals){
+  let i=vals.length-1; while(i>=0&&(vals[i]==null||isNaN(vals[i]))) i--;
+  if(i<0) return {last:null,delta:null};
+  const last=+vals[i], t=new Date(dates[i]);
+  const target=new Date(t.getTime()-7*864e5);
+  let j=i-1; for(;j>=0;j--){ const dj=new Date(dates[j]); if(dj<=target && vals[j]!=null && !isNaN(vals[j])) break; }
+  return {last, delta: j>=0 ? last- +vals[j] : null};
+}
+function setSnap(valId, deltaId, val, delta, unit="", invert=false){
+  const v=document.getElementById(valId), d=document.getElementById(deltaId);
+  if(val==null){ v.textContent="—"; d.textContent="—"; d.style.color="#94a3b8"; return; }
+  v.textContent = unit==="%" ? val.toFixed(2)+"%" : val.toFixed(2);
+  if(delta==null){ d.textContent="WoW —"; d.style.color="#94a3b8"; return; }
+  const sign = delta>0?"▲":(delta<0?"▼":"→");
+  d.textContent = `WoW ${sign} ${unit==="%"?delta.toFixed(2)+"%":delta.toFixed(2)}`;
+  const good = invert ? (delta<0) : (delta>0);
+  d.style.color = good ? "#22c55e" : (delta===0?"#e5e7eb":"#ef4444");
 }
 
-function computeWoW(xDates,yVals){
-  let lastIdx=yVals.length-1;
-  while(lastIdx>=0&&(yVals[lastIdx]==null||isNaN(yVals[lastIdx]))) lastIdx--;
-  if(lastIdx<0) return {last:null,delta:null};
-  const lastVal=Number(yVals[lastIdx]); const lastDate=new Date(xDates[lastIdx]);
-  let prevIdx=lastIdx; const target=new Date(lastDate.getTime()-7*24*3600*1000);
-  for(let i=lastIdx-1;i>=0;i--){ const di=new Date(xDates[i]);
-    if(di<=target && yVals[i]!=null && !isNaN(yVals[i])){ prevIdx=i; break; } }
-  if(prevIdx===lastIdx) return {last:lastVal, delta:null};
-  return {last:lastVal, delta:lastVal-Number(yVals[prevIdx])};
-}
-
-function setSnap(idVal,idDelta,val,delta,unit="",invert=false){
-  const vEl=document.getElementById(idVal), dEl=document.getElementById(idDelta);
-  if(val==null){ vEl.textContent='—'; dEl.textContent='—'; dEl.style.color='#94a3b8'; return; }
-  vEl.textContent=unit==="%"?val.toFixed(2)+'%':val.toFixed(2);
-  if(delta==null){ dEl.textContent='WoW —'; dEl.style.color='#94a3b8'; return; }
-  const sign=delta>0?'▲':(delta<0?'▼':'→');
-  dEl.textContent=`WoW ${sign} ${unit==="%"?delta.toFixed(2)+'%':delta.toFixed(2)}`;
-  const good=invert?(delta<0):(delta>0);
-  dEl.style.color=good?'var(--good)':(delta===0?'#e5e7eb':'var(--bad)');
-}
-
+/* ====== PLOTS ====== */
 function plotLine(divId,x,y,ytitle){
   const trace={x,y,mode:'lines',line:{width:2}};
   const layout={paper_bgcolor:'#12151c',plot_bgcolor:'#12151c',margin:{l:45,r:20,t:10,b:30},
@@ -196,20 +115,90 @@ function plotLines(divId,lines,ytitle){
   Plotly.newPlot(divId,traces,layout,{displayModeBar:false,responsive:true});
 }
 
-// ------- ดึงข้อมูลผ่าน proxy -------
-async function fetchFredSeries(series){
-  const url=`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${series}`;
+/* ====== FETCHERS (ผ่าน proxy) ====== */
+async function fetchFredSeries(id){
+  const url=`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`;
   const {header,rows}=await fetchCSV(url);
-  const dateIdx=header.indexOf('DATE'); const valIdx=header.indexOf(series);
-  const x=[],y=[]; for(const r of rows){ const dt=r[dateIdx]; const v=r[valIdx]==='.'?null:Number(r[valIdx]); x.push(dt); y.push(v); }
+  const di=header.indexOf("DATE"), vi=header.indexOf(id);
+  const x=[],y=[]; for(const r of rows){ x.push(r[di]); y.push(r[vi]==="."?null:+r[vi]); }
   return {x,y};
 }
-async function fetchNFCI_CSV(){
+async function fetchNFCI(){
   const url="https://www.chicagofed.org/~/media/publications/nfci/advanced/download-data/nfci.csv";
   const {header,rows}=await fetchCSV(url);
-  const dateIdx=header.findIndex(h=>h.toLowerCase().includes('date'));
-  const nfciIdx=header.findIndex(h=>h.toUpperCase()==='NFCI');
-  const anfciIdx=header.findIndex(h=>h.toUpperCase()==='ANFCI');
-  const x=[],yN=[],yA=[]; for(const r of rows){
-    const dt=r[dateIdx]; const n=nfciIdx>=0?(r[nfciIdx]?Number(r[nfciIdx]):null):null;
-    const a=anfciIdx>=0?(r[anfciIdx]?Number(r[anfciIdx]):null):null;
+  const di=header.findIndex(h=>h.toLowerCase().includes("date"));
+  const ni=header.findIndex(h=>h.toUpperCase()==="NFCI");
+  const ai=header.findIndex(h=>h.toUpperCase()==="ANFCI");
+  const x=[],yN=[],yA=[]; for(const r of rows){ if(r[di]){ x.push(r[di]); yN.push(r[ni]?+r[ni]:null); yA.push(r[ai]?+r[ai]:null); } }
+  return {x,yN,yA};
+}
+async function fetchDXYYahoo(){
+  const url="https://query1.finance.yahoo.com/v7/finance/quote?symbols=DX-Y.NYB,DX=F";
+  const r=await fetch(viaProxy(url)); if(!r.ok) throw 0;
+  const js=await r.json();
+  const arr=(js.quoteResponse&&js.quoteResponse.result)||[];
+  for(const q of arr){ if(q && typeof q.regularMarketPrice==='number') return q.regularMarketPrice; }
+  throw 0;
+}
+async function fetchUSDBroadFred(){
+  const s=await fetchFredSeries("DTWEXBGS");
+  const w=computeWoW(s.x,s.y);
+  return {last:w.last,delta:w.delta};
+}
+
+/* ====== MAIN ====== */
+async function drawAll(){
+  document.getElementById("updated").textContent="กำลังดึงข้อมูล…";
+  try{
+    // VIX
+    const vix=await fetchFredSeries("VIXCLS");
+    plotLine("chart_vix", vix.x.slice(-200), vix.y.slice(-200), "ดัชนี");
+    const vixW=computeWoW(vix.x,vix.y);
+    setSnap("snap_vix","snap_vix_delta", vixW.last, vixW.delta, "", false);
+
+    // Real yield
+    const real=await fetchFredSeries("DFII10");
+    plotLine("chart_real", real.x.slice(-200), real.y.slice(-200), "%");
+    const realW=computeWoW(real.x,real.y);
+    setSnap("snap_real","snap_real_delta", realW.last, realW.delta, "%", false);
+
+    // OAS
+    const hy=await fetchFredSeries("BAMLH0A0HYM2");
+    const bbb=await fetchFredSeries("BAMLC0A4CBBB");
+    plotLines("chart_oas",[
+      {name:"HY OAS", x:hy.x.slice(-200), y:hy.y.slice(-200)},
+      {name:"BBB OAS", x:bbb.x.slice(-200), y:bbb.y.slice(-200)}
+    ], "OAS (%)");
+    const hyW=computeWoW(hy.x,hy.y); setSnap("snap_hy","snap_hy_delta", hyW.last, hyW.delta, "%", false);
+    const bbbW=computeWoW(bbb.x,bbb.y); setSnap("snap_bbb","snap_bbb_delta", bbbW.last, bbbW.delta, "%", false);
+
+    // NFCI/ANFCI
+    const fc=await fetchNFCI();
+    plotLines("chart_nfci",[
+      {name:"NFCI", x:fc.x.slice(-260), y:fc.yN.slice(-260)},
+      {name:"ANFCI", x:fc.x.slice(-260), y:fc.yA.slice(-260)}
+    ], "ดัชนี");
+    const nW=computeWoW(fc.x,fc.yN); setSnap("snap_nfci","snap_nfci_delta", nW.last, nW.delta, "", true);
+    const aW=computeWoW(fc.x,fc.yA); setSnap("snap_anfci","snap_anfci_delta", aW.last, aW.delta, "", true);
+
+    // DXY snapshot (Yahoo → proxy; fallback FRED USD Broad)
+    try{
+      const p=await fetchDXYYahoo();
+      document.getElementById("snap_dxy").textContent=p.toFixed(2);
+      const dl=document.getElementById("snap_dxy_delta"); dl.textContent="—"; dl.style.color="#94a3b8";
+    }catch(_){
+      try{
+        const fb=await fetchUSDBroadFred();
+        document.getElementById("label_dxy").textContent="USD Broad (FRED)";
+        document.getElementById("snap_dxy").textContent=fb.last!=null?fb.last.toFixed(2):"—";
+        const dl=document.getElementById("snap_dxy_delta");
+        if(fb.delta==null){ dl.textContent="WoW —"; dl.style.color="#94a3b8"; }
+        else{ const s=fb.delta>0?"▲":(fb.delta<0?"▼":"→");
+          dl.textContent=`WoW ${s} ${fb.delta.toFixed(2)}`;
+          dl.style.color = fb.delta>0 ? "#22c55e" : (fb.delta===0?"#e5e7eb":"#ef4444"); }
+      }catch(e){ document.getElementById("snap_dxy").textContent="—"; document.getElementById("snap_dxy_delta").textContent="—"; }
+    }
+
+    document.getElementById("updated").textContent=new Date().toLocaleString();
+  }catch(err){
+    console.error(err);
