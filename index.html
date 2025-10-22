@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v6-proxy</title>
+<title>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v6-multiproxy</title>
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -32,7 +32,7 @@
 <body>
 <header>
   <div>
-    <h1>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v6-proxy</h1>
+    <h1>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v6-multiproxy</h1>
     <div class="meta">อัปเดตล่าสุด: <span id="updated">กำลังดึงข้อมูล…</span>
       <span class="badge">รีเฟรชอัตโนมัติทุก 5 นาที</span></div>
   </div>
@@ -58,12 +58,24 @@
 <div class="footer">© Macro Dashboard TH — ใช้เพื่อการวิเคราะห์เท่านั้น</div>
 
 <script>
-/* ====== PROXY HELPERS (แก้ CORS) ====== */
-const PROXY = "https://r.jina.ai/http://"; // proxy สาธารณะ (อ่านเท่านั้น)
-function viaProxy(url){
-  // รับทั้ง http/https — บังคับให้ผ่าน http สำหรับ proxy ตัวนี้
-  const u = new URL(url);
-  return PROXY + u.host + u.pathname + (u.search||"");
+/* ====== MULTI-PROXY HELPERS ====== */
+const PROXIES = [
+  (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u), // 1) AllOrigins
+  (u) => "https://cors.isomorphic-git.org/" + u,                        // 2) isomorphic-git
+  (u) => {                                                              // 3) Jina (fallback)
+    const x = new URL(u);
+    return "https://r.jina.ai/http://" + x.host + x.pathname + (x.search || "");
+  },
+];
+async function fetchTextViaAny(url){
+  for(const build of PROXIES){
+    try{
+      const r = await fetch(build(url));
+      if(!r.ok) throw 0;
+      return await r.text();
+    }catch(_){ /* try next */ }
+  }
+  throw new Error("All proxies failed for "+url);
 }
 
 /* ====== CSV/UTILS ====== */
@@ -74,9 +86,8 @@ function parseCSV(text){
   return {header,rows};
 }
 async function fetchCSV(url){
-  const r=await fetch(viaProxy(url));
-  if(!r.ok) throw new Error("fetch "+r.status);
-  return parseCSV(await r.text());
+  const txt = await fetchTextViaAny(url);
+  return parseCSV(txt);
 }
 function computeWoW(dates,vals){
   let i=vals.length-1; while(i>=0&&(vals[i]==null||isNaN(vals[i]))) i--;
@@ -115,7 +126,7 @@ function plotLines(divId,lines,ytitle){
   Plotly.newPlot(divId,traces,layout,{displayModeBar:false,responsive:true});
 }
 
-/* ====== FETCHERS (ผ่าน proxy) ====== */
+/* ====== FETCHERS (ใช้ multiproxy) ====== */
 async function fetchFredSeries(id){
   const url=`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`;
   const {header,rows}=await fetchCSV(url);
@@ -133,12 +144,11 @@ async function fetchNFCI(){
   return {x,yN,yA};
 }
 async function fetchDXYYahoo(){
-  const url="https://query1.finance.yahoo.com/v7/finance/quote?symbols=DX-Y.NYB,DX=F";
-  const r=await fetch(viaProxy(url)); if(!r.ok) throw 0;
-  const js=await r.json();
+  const txt = await fetchTextViaAny("https://query1.finance.yahoo.com/v7/finance/quote?symbols=DX-Y.NYB,DX=F");
+  const js = JSON.parse(txt);
   const arr=(js.quoteResponse&&js.quoteResponse.result)||[];
   for(const q of arr){ if(q && typeof q.regularMarketPrice==='number') return q.regularMarketPrice; }
-  throw 0;
+  throw new Error("No DXY price");
 }
 async function fetchUSDBroadFred(){
   const s=await fetchFredSeries("DTWEXBGS");
@@ -150,19 +160,16 @@ async function fetchUSDBroadFred(){
 async function drawAll(){
   document.getElementById("updated").textContent="กำลังดึงข้อมูล…";
   try{
-    // VIX
     const vix=await fetchFredSeries("VIXCLS");
     plotLine("chart_vix", vix.x.slice(-200), vix.y.slice(-200), "ดัชนี");
     const vixW=computeWoW(vix.x,vix.y);
     setSnap("snap_vix","snap_vix_delta", vixW.last, vixW.delta, "", false);
 
-    // Real yield
     const real=await fetchFredSeries("DFII10");
     plotLine("chart_real", real.x.slice(-200), real.y.slice(-200), "%");
     const realW=computeWoW(real.x,real.y);
     setSnap("snap_real","snap_real_delta", realW.last, realW.delta, "%", false);
 
-    // OAS
     const hy=await fetchFredSeries("BAMLH0A0HYM2");
     const bbb=await fetchFredSeries("BAMLC0A4CBBB");
     plotLines("chart_oas",[
@@ -172,7 +179,6 @@ async function drawAll(){
     const hyW=computeWoW(hy.x,hy.y); setSnap("snap_hy","snap_hy_delta", hyW.last, hyW.delta, "%", false);
     const bbbW=computeWoW(bbb.x,bbb.y); setSnap("snap_bbb","snap_bbb_delta", bbbW.last, bbbW.delta, "%", false);
 
-    // NFCI/ANFCI
     const fc=await fetchNFCI();
     plotLines("chart_nfci",[
       {name:"NFCI", x:fc.x.slice(-260), y:fc.yN.slice(-260)},
@@ -181,7 +187,6 @@ async function drawAll(){
     const nW=computeWoW(fc.x,fc.yN); setSnap("snap_nfci","snap_nfci_delta", nW.last, nW.delta, "", true);
     const aW=computeWoW(fc.x,fc.yA); setSnap("snap_anfci","snap_anfci_delta", aW.last, aW.delta, "", true);
 
-    // DXY snapshot (Yahoo → proxy; fallback FRED USD Broad)
     try{
       const p=await fetchDXYYahoo();
       document.getElementById("snap_dxy").textContent=p.toFixed(2);
@@ -202,3 +207,11 @@ async function drawAll(){
     document.getElementById("updated").textContent=new Date().toLocaleString();
   }catch(err){
     console.error(err);
+    document.getElementById("updated").textContent="ดึงข้อมูลไม่สำเร็จ (ตรวจ proxy/เน็ต)";
+  }
+}
+drawAll();
+setInterval(drawAll, 5*60*1000);
+</script>
+</body>
+</html>
