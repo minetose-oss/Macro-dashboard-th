@@ -60,7 +60,7 @@ jobs:
             return { id, x, y, last: wow.last, delta: wow.delta };
           }
           async function nfci(){
-            const txt = await fetchText("https://www.chicagofed.org/~/media/publications/nfci/advanced/download-data/nfci.csv");
+            const txt = await fetchText("https://www.chicagofed.org/~/media/publications/nfci/files/nfci.csv");
             const {header, rows} = parseCSV(txt);
             const di = header.findIndex(h=>h.toLowerCase().includes('date'));
             const ni = header.findIndex(h=>h.toUpperCase()==='NFCI');
