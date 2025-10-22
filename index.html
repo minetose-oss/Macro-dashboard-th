@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>แดชบอร์ดมาโคร — LIVE (ไทย)</title>
+<title>แดชบอร์ดมาโคร — LIVE (ภาษาไทย) v6</title>
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{ --bg:#0b0c10; --panel:#12151c; --line:#1f2430; --txt:#e5e7eb; --muted:#94a3b8; --brand:#a3bffa; --good:#22c55e; --bad:#ef4444;}
   *{box-sizing:border-box}
-  body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans Thai", "Noto Sans", sans-serif; margin:0; background:var(--bg); color:var(--txt)}
+  body{font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans Thai","Noto Sans",sans-serif; margin:0; background:var(--bg); color:var(--txt)}
   header{padding:16px 20px; display:flex; align-items:center; justify-content:space-between; background:#111317; border-bottom:1px solid var(--line)}
   h1{font-size:18px; margin:0; letter-spacing:0.4px; color:#cbd5e1}
   .meta{font-size:12px; color:var(--muted)}
@@ -39,7 +39,7 @@
 <body>
 <header>
   <div>
-    <h1>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย)</h1>
+    <h1>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v6</h1>
     <div class="meta">
       อัปเดตล่าสุด: <span id="updated">กำลังดึงข้อมูล…</span>
       <span class="badge">รีเฟรชอัตโนมัติทุก 5 นาที</span>
@@ -121,15 +121,15 @@
     <h2>แหล่งข้อมูล</h2>
     <div style="line-height:1.7">
       • FRED: VIXCLS, DFII10, BAMLH0A0HYM2, BAMLC0A4CBBB<br/>
-      • Chicago Fed: NFCI/ANFCI CSV (ดึงอัตโนมัติ)<br/>
-      • DXY & VIX (Realtime): TradingView Widgets + DXY Snapshot (Yahoo, fallback FRED Broad USD)<br/>
-      • ETF/ICI Flows: อัปโหลดไฟล์ CSV/XLSX ที่คุณมี<br/>
+      • Chicago Fed: NFCI/ANFCI CSV<br/>
+      • DXY & VIX (Realtime): TradingView<br/>
+      • ETF/ICI: อัปโหลด CSV/XLSX<br/>
     </div>
   </div>
 </div>
 
 <div class="footer">
-  © Live Macro Dashboard (Thai). ข้อมูลบางส่วนอาจมีดีเลย์ตามแหล่งที่มา / ใช้เพื่อการวิเคราะห์เท่านั้น.
+  © Live Macro Dashboard (Thai v6). ข้อมูลบางส่วนอาจมีดีเลย์ / ใช้เพื่อการวิเคราะห์เท่านั้น.
 </div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
@@ -138,47 +138,47 @@
   new TradingView.widget({ "autosize": true, "symbol": "CBOE:VIX", "interval": "60", "timezone": "Etc/UTC", "theme": "dark", "style": "1", "locale": "th", "container_id": "tradingview_vix" });
 </script>
 
+<!-- ====== PROXY + FETCH (แก้ CORS) ====== -->
 <script>
-// ---------- Utilities ----------
 function parseCSV(text){
   const lines=text.trim().split(/\r?\n/);
   const header=lines.shift().split(',').map(s=>s.trim());
   const rows=lines.map(line=>line.split(',').map(s=>s.trim()));
   return {header,rows};
 }
+// ใช้ proxy สาธารณะของ r.jina.ai เพื่อใส่ CORS header
+function prox(url){ return 'https://r.jina.ai/http://' + url.replace(/^https?:\/\//,''); }
+
 async function fetchCSV(url){
-  const r=await fetch(url); if(!r.ok) throw new Error('Fetch failed '+r.status);
-  const txt=await r.text(); return parseCSV(txt);
-}
-function computeWoW(xDates, yVals){
-  let lastIdx = yVals.length - 1;
-  while(lastIdx >= 0 && (yVals[lastIdx]==null || isNaN(yVals[lastIdx]))) lastIdx--;
-  if(lastIdx < 0) return {last:null, delta:null};
-  const lastVal = Number(yVals[lastIdx]);
-  const lastDate = new Date(xDates[lastIdx]);
-  let prevIdx = lastIdx;
-  const target = new Date(lastDate.getTime() - 7*24*3600*1000);
-  for(let i=lastIdx-1;i>=0;i--){
-    const di = new Date(xDates[i]);
-    if(di <= target && yVals[i]!=null && !isNaN(yVals[i])) { prevIdx = i; break; }
-  }
-  if(prevIdx === lastIdx) return {last:lastVal, delta:null};
-  const delta = lastVal - Number(yVals[prevIdx]);
-  return {last:lastVal, delta:delta};
-}
-function setSnap(idVal, idDelta, val, delta, unit="", invert=false){
-  const vEl=document.getElementById(idVal);
-  const dEl=document.getElementById(idDelta);
-  if(val==null){ vEl.textContent='—'; dEl.textContent='—'; dEl.style.color='#94a3b8'; return; }
-  vEl.textContent = unit==="%" ? val.toFixed(2)+'%' : val.toFixed(2);
-  if(delta==null){ dEl.textContent='WoW —'; dEl.style.color='#94a3b8'; return; }
-  const sign = delta>0? "▲" : (delta<0? "▼" : "→");
-  dEl.textContent = `WoW ${sign} ${unit==="%"?delta.toFixed(2)+'%':delta.toFixed(2)}`;
-  const good = invert ? (delta<0) : (delta>0);
-  dEl.style.color = good ? 'var(--good)' : (delta===0? '#e5e7eb' : 'var(--bad)');
+  const r=await fetch(prox(url));
+  if(!r.ok) throw new Error('Fetch failed '+r.status);
+  const txt=await r.text();
+  return parseCSV(txt);
 }
 
-// ---------- Plot helpers ----------
+function computeWoW(xDates,yVals){
+  let lastIdx=yVals.length-1;
+  while(lastIdx>=0&&(yVals[lastIdx]==null||isNaN(yVals[lastIdx]))) lastIdx--;
+  if(lastIdx<0) return {last:null,delta:null};
+  const lastVal=Number(yVals[lastIdx]); const lastDate=new Date(xDates[lastIdx]);
+  let prevIdx=lastIdx; const target=new Date(lastDate.getTime()-7*24*3600*1000);
+  for(let i=lastIdx-1;i>=0;i--){ const di=new Date(xDates[i]);
+    if(di<=target && yVals[i]!=null && !isNaN(yVals[i])){ prevIdx=i; break; } }
+  if(prevIdx===lastIdx) return {last:lastVal, delta:null};
+  return {last:lastVal, delta:lastVal-Number(yVals[prevIdx])};
+}
+
+function setSnap(idVal,idDelta,val,delta,unit="",invert=false){
+  const vEl=document.getElementById(idVal), dEl=document.getElementById(idDelta);
+  if(val==null){ vEl.textContent='—'; dEl.textContent='—'; dEl.style.color='#94a3b8'; return; }
+  vEl.textContent=unit==="%"?val.toFixed(2)+'%':val.toFixed(2);
+  if(delta==null){ dEl.textContent='WoW —'; dEl.style.color='#94a3b8'; return; }
+  const sign=delta>0?'▲':(delta<0?'▼':'→');
+  dEl.textContent=`WoW ${sign} ${unit==="%"?delta.toFixed(2)+'%':delta.toFixed(2)}`;
+  const good=invert?(delta<0):(delta>0);
+  dEl.style.color=good?'var(--good)':(delta===0?'#e5e7eb':'var(--bad)');
+}
+
 function plotLine(divId,x,y,ytitle){
   const trace={x,y,mode:'lines',line:{width:2}};
   const layout={paper_bgcolor:'#12151c',plot_bgcolor:'#12151c',margin:{l:45,r:20,t:10,b:30},
@@ -196,7 +196,7 @@ function plotLines(divId,lines,ytitle){
   Plotly.newPlot(divId,traces,layout,{displayModeBar:false,responsive:true});
 }
 
-// ---------- Fetchers (FRED/Chicago Fed/Yahoo) ----------
+// ------- ดึงข้อมูลผ่าน proxy -------
 async function fetchFredSeries(series){
   const url=`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${series}`;
   const {header,rows}=await fetchCSV(url);
@@ -213,137 +213,3 @@ async function fetchNFCI_CSV(){
   const x=[],yN=[],yA=[]; for(const r of rows){
     const dt=r[dateIdx]; const n=nfciIdx>=0?(r[nfciIdx]?Number(r[nfciIdx]):null):null;
     const a=anfciIdx>=0?(r[anfciIdx]?Number(r[anfciIdx]):null):null;
-    if(dt){ x.push(dt); yN.push(n); yA.push(a); }
-  }
-  return {x,yN,yA};
-}
-// Yahoo Finance DXY (อาจโดน CORS ในบางที่) — fallback: FRED USD Broad (DTWEXBGS)
-async function fetchDXYYahoo(){
-  const url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=DX-Y.NYB,DX=F';
-  const r = await fetch(url);
-  if(!r.ok) throw new Error('Yahoo quote failed');
-  const js = await r.json();
-  const res = js.quoteResponse && js.quoteResponse.result ? js.quoteResponse.result : [];
-  for(const q of res){
-    if(q && typeof q.regularMarketPrice === 'number') return q.regularMarketPrice;
-  }
-  throw new Error('No price');
-}
-async function fetchUSDBroadFred(){
-  const s = await fetchFredSeries('DTWEXBGS');
-  const snap = computeWoW(s.x, s.y);
-  return { last: snap.last, delta: snap.delta };
-}
-async function updateDXYSnapshot(){
-  try{
-    const price = await fetchDXYYahoo();
-    document.getElementById('snap_dxy').textContent = price.toFixed(2);
-    const dl=document.getElementById('snap_dxy_delta'); dl.textContent='—'; dl.style.color='#94a3b8';
-  }catch(e){
-    try{
-      const fb = await fetchUSDBroadFred();
-      document.getElementById('label_dxy').textContent = 'USD Broad (FRED)';
-      const el=document.getElementById('snap_dxy'); const dl=document.getElementById('snap_dxy_delta');
-      el.textContent = fb.last!=null ? fb.last.toFixed(2) : '—';
-      if(fb.delta==null){ dl.textContent='WoW —'; dl.style.color='#94a3b8'; }
-      else{
-        const sign = fb.delta>0? "▲" : (fb.delta<0? "▼" : "→");
-        dl.textContent = `WoW ${sign} ${fb.delta.toFixed(2)}`;
-        dl.style.color = fb.delta>0 ? '#22c55e' : (fb.delta===0? '#e5e7eb' : '#ef4444');
-      }
-    }catch(_){
-      document.getElementById('snap_dxy').textContent='—';
-      document.getElementById('snap_dxy_delta').textContent='—';
-    }
-  }
-}
-
-// ---------- File upload (CSV/XLSX) ----------
-async function readFileAsArrayBuffer(file){ return await new Response(file).arrayBuffer(); }
-async function readFileAsText(file){ return await file.text(); }
-function sheetToCSV(workbook){ const first=workbook.SheetNames[0]; return XLSX.utils.sheet_to_csv(workbook.Sheets[first]); }
-async function loadICI(){
-  const f=document.getElementById('file_ici').files[0];
-  if(!f){ alert('โปรดเลือกไฟล์ ICI (*.csv หรือ *.xlsx)'); return; }
-  let csvText='';
-  if(f.name.toLowerCase().endsWith('.xlsx')){ const buf=await readFileAsArrayBuffer(f); const wb=XLSX.read(buf,{type:'array'}); csvText=sheetToCSV(wb); }
-  else { csvText=await readFileAsText(f); }
-  const {header,rows}=parseCSV(csvText);
-  const idxDate=header.findIndex(h=>/week_end/i.test(h));
-  const idxEq=header.findIndex(h=>/equity_flows/i.test(h));
-  const idxBd=header.findIndex(h=>/bond_flows/i.test(h));
-  if(idxDate<0||idxEq<0||idxBd<0){ alert("หัวตารางไม่ตรงรูปแบบตัวอย่าง"); return; }
-  const x=[],yEq=[],yBd=[];
-  rows.forEach(r=>{ x.push(r[idxDate]); yEq.push(Number(r[idxEq]||0)); yBd.push(Number(r[idxBd]||0)); });
-  const traces=[{x,y:yEq,type:'bar',name:'Equity MF'},{x,y:yBd,type:'bar',name:'Bond MF'}];
-  const layout={barmode:'group',paper_bgcolor:'#12151c',plot_bgcolor:'#12151c',
-    margin:{l:45,r:20,t:10,b:30}, xaxis:{tickfont:{color:'#cbd5e1'}},
-    yaxis:{tickfont:{color:'#cbd5e1'}, title:'$ พันล้าน', titlefont:{color:'#94a3b8'}},
-    legend:{orientation:'h',y:-0.2,font:{color:'#cbd5e1'}}};
-  Plotly.newPlot('chart_ici',traces,layout,{displayModeBar:false,responsive:true});
-}
-async function loadETF(){
-  const f=document.getElementById('file_etf').files[0];
-  if(!f){ alert('โปรดเลือกไฟล์ ETF (*.csv หรือ *.xlsx)'); return; }
-  let csvText='';
-  if(f.name.toLowerCase().endsWith('.xlsx')){ const buf=await readFileAsArrayBuffer(f); const wb=XLSX.read(buf,{type:'array'}); csvText=sheetToCSV(wb); }
-  else { csvText=await readFileAsText(f); }
-  const {header,rows}=parseCSV(csvText);
-  const idxDate=header.findIndex(h=>/week_end/i.test(h));
-  const idxTot=header.findIndex(h=>/total_etf/i.test(h));
-  if(idxDate<0||idxTot<0){ alert("หัวตารางไม่ตรงรูปแบบตัวอย่าง"); return; }
-  const x=[],y=[]; rows.forEach(r=>{ x.push(r[idxDate]); y.push(Number(r[idxTot]||0)); });
-  const trace=[{x,y,type:'bar',name:'Total ETF'}];
-  const layout={paper_bgcolor:'#12151c',plot_bgcolor:'#12151c',
-    margin:{l:45,r:20,t:10,b:30}, xaxis:{tickfont:{color:'#cbd5e1'}},
-    yaxis:{tickfont:{color:'#cbd5e1'}, title:'$ พันล้าน', titlefont:{color:'#94a3b8'}},
-    showlegend:false};
-  Plotly.newPlot('chart_etf',trace,layout,{displayModeBar:false,responsive:true});
-}
-
-// ---------- Main draw ----------
-async function drawAll(){
-  document.getElementById('updated').textContent='กำลังดึงข้อมูล…';
-  try{
-    const vix = await fetchFredSeries('VIXCLS');
-    plotLine('chart_vix', vix.x.slice(-200), vix.y.slice(-200), 'ดัชนี');
-    const vixSnap = computeWoW(vix.x, vix.y);
-    setSnap('snap_vix','snap_vix_delta', vixSnap.last, vixSnap.delta, "", false);
-
-    const real = await fetchFredSeries('DFII10');
-    plotLine('chart_real', real.x.slice(-200), real.y.slice(-200), '%');
-    const realSnap = computeWoW(real.x, real.y);
-    setSnap('snap_real','snap_real_delta', realSnap.last, realSnap.delta, "%", false);
-
-    const hy = await fetchFredSeries('BAMLH0A0HYM2');
-    const bbb = await fetchFredSeries('BAMLC0A4CBBB');
-    plotLines('chart_oas', [
-      {name:'HY OAS', x:hy.x.slice(-200), y:hy.y.slice(-200)},
-      {name:'BBB OAS', x:bbb.x.slice(-200), y:bbb.y.slice(-200)}
-    ], 'OAS (%)');
-    const hySnap = computeWoW(hy.x, hy.y);
-    setSnap('snap_hy','snap_hy_delta', hySnap.last, hySnap.delta, "%", false);
-    const bbbSnap = computeWoW(bbb.x, bbb.y);
-    setSnap('snap_bbb','snap_bbb_delta', bbbSnap.last, bbbSnap.delta, "%", false);
-
-    const fc = await fetchNFCI_CSV();
-    plotLine('chart_nfci', fc.x.slice(-260), fc.yN.slice(-260), 'ดัชนี');
-    plotLine('chart_anfci', fc.x.slice(-260), fc.yA.slice(-260), 'ดัชนี');
-    const nfciSnap = computeWoW(fc.x, fc.yN);
-    setSnap('snap_nfci','snap_nfci_delta', nfciSnap.last, nfciSnap.delta, "", true);
-    const anfciSnap = computeWoW(fc.x, fc.yA);
-    setSnap('snap_anfci','snap_anfci_delta', anfciSnap.last, anfciSnap.delta, "", true);
-
-    await updateDXYSnapshot();
-
-    document.getElementById('updated').textContent = new Date().toLocaleString();
-  }catch(e){
-    console.error(e);
-    document.getElementById('updated').textContent='ดึงข้อมูลไม่สำเร็จ (อาจติด CORS/อินเทอร์เน็ต)';
-  }
-}
-drawAll();
-setInterval(drawAll, 5*60*1000);
-</script>
-</body>
-</html>
