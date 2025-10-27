@@ -1,0 +1,173 @@
+name: Smart Incremental NAV Sync
+
+on:
+  schedule:
+    # Reset sync status (07:00 Bangkok = 00:00 UTC)
+    - cron: '0 0 * * 1-5'
+    
+    # Sync rounds (Monday-Friday)
+    - cron: '0 1 * * 1-5'   # 08:00 - Round 1 (Full sync)
+    - cron: '0 3 * * 1-5'   # 10:00 - Round 2 (Incremental)
+    - cron: '0 5 * * 1-5'   # 12:00 - Round 3 (Incremental)
+    - cron: '0 7 * * 1-5'   # 14:00 - Round 4 (Incremental)
+    - cron: '0 11 * * 1-5'  # 18:00 - Round 5 (Final)
+  
+  workflow_dispatch:
+
+jobs:
+  reset-sync:
+    name: Reset Daily Sync Status
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 0 * * 1-5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'reset')
+    
+    steps:
+      - name: Reset Sync Status for New Day
+        run: |
+          echo "🔄 Resetting sync status..."
+          
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            https://lash-jhscy29s.manus.space/api/sec/reset-sync \
+            -H "Content-Type: application/json")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+          
+          echo "Response: $body"
+          
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "✅ Reset successful"
+          else
+            echo "❌ Reset failed (HTTP $http_code)"
+            exit 1
+          fi
+
+  smart-sync:
+    name: Smart Incremental Sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event.schedule != '0 0 * * 1-5' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action != 'reset')
+    
+    steps:
+      - name: Get Current Sync Statistics
+        id: stats_before
+        run: |
+          echo "📊 Getting sync statistics..."
+          
+          stats=$(curl -s https://lash-jhscy29s.manus.space/api/sec/sync-stats)
+          echo "$stats" | jq '.' || echo "$stats"
+          
+          # Extract pending count
+          pending=$(echo "$stats" | jq -r '.byStatus[]? | select(.status=="pending") | .count' 2>/dev/null || echo "0")
+          total=$(echo "$stats" | jq -r '.total' 2>/dev/null || echo "0")
+          
+          echo "📈 Total funds: $total"
+          echo "⏳ Pending: $pending"
+          echo "pending=$pending" >> $GITHUB_OUTPUT
+          echo "total=$total" >> $GITHUB_OUTPUT
+      
+      - name: Smart Incremental Sync
+        id: sync
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🚀 Starting Smart Incremental Sync"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🕐 Time: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+          echo "⏳ Pending funds: ${{ steps.stats_before.outputs.pending }}"
+          echo ""
+          
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            https://lash-jhscy29s.manus.space/api/sec/smart-sync \
+            -H "Content-Type: application/json" \
+            --max-time 900)
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+          
+          echo "Response: $body" | jq '.' || echo "$body"
+          
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "❌ Sync failed (HTTP $http_code)"
+            exit 1
+          fi
+          
+          # Check if skipped
+          skipped=$(echo "$body" | jq -r '.skipped // false')
+          
+          if [ "$skipped" = "true" ]; then
+            echo ""
+            echo "✅ All funds are up to date - sync skipped"
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Extract results
+          checked=$(echo "$body" | jq -r '.checked // 0')
+          updated=$(echo "$body" | jq -r '.updated // 0')
+          no_update=$(echo "$body" | jq -r '.noUpdate // 0')
+          still_pending=$(echo "$body" | jq -r '.stillPending // 0')
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 Sync Results"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔍 Checked: $checked funds"
+          echo "✅ Updated: $updated funds"
+          echo "⏭️  No change: $no_update funds"
+          echo "⏳ Still pending: $still_pending funds"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # Save to outputs
+          echo "checked=$checked" >> $GITHUB_OUTPUT
+          echo "updated=$updated" >> $GITHUB_OUTPUT
+          echo "still_pending=$still_pending" >> $GITHUB_OUTPUT
+      
+      - name: Get Final Statistics
+        if: steps.sync.outputs.skipped != 'true'
+        run: |
+          echo ""
+          echo "📊 Final Statistics:"
+          
+          stats=$(curl -s https://lash-jhscy29s.manus.space/api/sec/sync-stats)
+          echo "$stats" | jq '.' || echo "$stats"
+          
+          synced=$(echo "$stats" | jq -r '.byStatus[]? | select(.status=="synced") | .count' 2>/dev/null || echo "0")
+          pending=$(echo "$stats" | jq -r '.byStatus[]? | select(.status=="pending") | .count' 2>/dev/null || echo "0")
+          total=$(echo "$stats" | jq -r '.total' 2>/dev/null || echo "0")
+          updated_today=$(echo "$stats" | jq -r '.updatedToday' 2>/dev/null || echo "0")
+          
+          echo ""
+          echo "✅ Synced: $synced / $total"
+          echo "⏳ Pending: $pending"
+          echo "📅 Updated today: $updated_today"
+          
+          # Calculate completion percentage
+          if [ "$total" -gt 0 ]; then
+            completion=$((synced * 100 / total))
+            echo "📈 Completion: $completion%"
+            
+            if [ "$completion" -eq 100 ]; then
+              echo ""
+              echo "🎉 All funds synced successfully!"
+            fi
+          fi
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 Summary"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🕐 Completed: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+          
+          if [ "${{ steps.sync.outputs.skipped }}" = "true" ]; then
+            echo "✅ Status: All funds up to date (skipped)"
+          else
+            echo "🔍 Checked: ${{ steps.sync.outputs.checked }} funds"
+            echo "✅ Updated: ${{ steps.sync.outputs.updated }} funds"
+            echo "⏳ Still pending: ${{ steps.sync.outputs.still_pending }} funds"
+          fi
+          
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "⏰ Next sync: Check GitHub Actions schedule"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
