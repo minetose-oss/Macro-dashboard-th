@@ -163,23 +163,4 @@ jobs:
             fi
           fi
       
-      - name: Summary
-        if: always()
-        run: |
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📋 Summary"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🕐 Completed: $(date '+%Y-%m-%d %H:%M:%S %Z')"
-          
-          if [ "${{ steps.sync.outputs.skipped }}" = "true" ]; then
-            echo "✅ Status: All funds up to date (skipped)"
-          else
-            echo "🔍 Checked: ${{ steps.sync.outputs.checked }} funds"
-            echo "✅ Updated: ${{ steps.sync.outputs.updated }} funds"
-            echo "⏳ Still pending: ${{ steps.sync.outputs.still_pending }} funds"
-          fi
-          
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "⏰ Next sync: Check GitHub Actions schedule"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+   
