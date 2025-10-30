@@ -1,9 +1,13 @@
 name: Smart Incremental NAV Sync
 
 on:
-  schedule:
-    # Reset sync status (07:00 Bangkok = 00:00 UTC)
-    - cron: '0 0 * * 1-5'
+  # TEMPORARILY DISABLED - API server (lash-jhscy29s.manus.space) is not available
+  # Uncomment the schedule below when API server is ready
+  # schedule:
+  #   # Reset sync status (07:00 Bangkok = 00:00 UTC)
+  #   - cron: '0 0 * * 1-5'
+  ...
+
     
     # Sync rounds (Monday-Friday)
     - cron: '0 1 * * 1-5'   # 08:00 - Round 1 (Full sync)
