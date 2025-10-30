@@ -6,15 +6,23 @@ on:
   # schedule:
   #   # Reset sync status (07:00 Bangkok = 00:00 UTC)
   #   - cron: '0 0 * * 1-5'
-  ...
+  
 
     
-    # Sync rounds (Monday-Friday)
-    - cron: '0 1 * * 1-5'   # 08:00 - Round 1 (Full sync)
-    - cron: '0 3 * * 1-5'   # 10:00 - Round 2 (Incremental)
-    - cron: '0 5 * * 1-5'   # 12:00 - Round 3 (Incremental)
-    - cron: '0 7 * * 1-5'   # 14:00 - Round 4 (Incremental)
-    - cron: '0 11 * * 1-5'  # 18:00 - Round 5 (Final)
+    on:
+  # TEMPORARILY DISABLED - API server (lash-jhscy29s.manus.space) is not available
+  # Uncomment the schedule below when API server is ready
+  # schedule:
+  #   # Reset sync status (07:00 Bangkok = 00:00 UTC)
+  #   - cron: '0 0 * * 1-5'
+  #   
+  #   # Sync rounds (Monday-Friday)
+  #   - cron: '0 1 * * 1-5'   # 08:00 - Round 1 (Full sync)
+  #   - cron: '0 3 * * 1-5'   # 10:00 - Round 2 (Incremental)
+  #   - cron: '0 5 * * 1-5'   # 12:00 - Round 3 (Incremental)
+  #   - cron: '0 7 * * 1-5'   # 14:00 - Round 4 (Incremental)
+  #   - cron: '0 11 * * 1-5'  # 18:00 - Round 5 (Final)
+
   
   workflow_dispatch:
 
