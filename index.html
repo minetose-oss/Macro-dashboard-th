@@ -3,9 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v6-multiproxy</title>
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<title>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v7</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
   :root{ --bg:#0b0c10; --panel:#12151c; --line:#1f2430; --txt:#e5e7eb; --muted:#94a3b8; --brand:#a3bffa; --good:#22c55e; --bad:#ef4444;}
   *{box-sizing:border-box}
@@ -22,18 +21,17 @@
   .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:14px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
   .card h2{font-size:14px;margin:0 0 8px 0;color:var(--brand)}
-  .row{display:flex;gap:14px;padding:0 14px 14px 14px}
-  .col{flex:1}
   .footer{padding:10px 16px;font-size:12px;color:#64748b}
   @media (max-width:1280px){.snap-grid{grid-template-columns:repeat(4,1fr)}}
-  @media (max-width:780px){.grid{grid-template-columns:1fr}.row{flex-direction:column}.snap-grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:780px){.grid{grid-template-columns:1fr}.snap-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 <header>
   <div>
-    <h1>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v6-multiproxy</h1>
+    <h1>WEEKLY MACRO DASHBOARD — LIVE (ภาษาไทย) v7</h1>
     <div class="meta">อัปเดตล่าสุด: <span id="updated">กำลังดึงข้อมูล…</span>
+      <span class="badge" id="source_badge">กำลังโหลด</span>
       <span class="badge">รีเฟรชอัตโนมัติทุก 5 นาที</span></div>
   </div>
 </header>
@@ -58,24 +56,27 @@
 <div class="footer">© Macro Dashboard TH — ใช้เพื่อการวิเคราะห์เท่านั้น</div>
 
 <script>
-/* ====== MULTI-PROXY HELPERS ====== */
+/* ====== MULTI-PROXY HELPERS (fallback live mode) ====== */
 const PROXIES = [
-  (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u), // 1) AllOrigins
-  (u) => "https://cors.isomorphic-git.org/" + u,                        // 2) isomorphic-git
-  (u) => {                                                              // 3) Jina (fallback)
+  (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+  (u) => "https://cors.isomorphic-git.org/" + u,
+  (u) => {
     const x = new URL(u);
     return "https://r.jina.ai/http://" + x.host + x.pathname + (x.search || "");
   },
 ];
 async function fetchTextViaAny(url){
+  let lastErr;
   for(const build of PROXIES){
     try{
       const r = await fetch(build(url));
-      if(!r.ok) throw 0;
-      return await r.text();
-    }catch(_){ /* try next */ }
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      const t = await r.text();
+      if(!t || t.length < 20) throw new Error("empty");
+      return t;
+    }catch(e){ lastErr = e; }
   }
-  throw new Error("All proxies failed for "+url);
+  throw lastErr || new Error("All proxies failed for "+url);
 }
 
 /* ====== CSV/UTILS ====== */
@@ -84,6 +85,14 @@ function parseCSV(text){
   const header=lines.shift().split(',').map(s=>s.trim());
   const rows=lines.map(line=>line.split(',').map(s=>s.trim()));
   return {header,rows};
+}
+function dateCol(header){
+  return header.findIndex(h => /^(DATE|observation_date|Friday_of_Week)$/i.test(h) || h.toLowerCase().includes("date"));
+}
+function normalizeDate(d){
+  const m = String(d).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return `${m[3]}-${m[1].padStart(2,"0")}-${m[2].padStart(2,"0")}`;
+  return d;
 }
 async function fetchCSV(url){
   const txt = await fetchTextViaAny(url);
@@ -99,9 +108,9 @@ function computeWoW(dates,vals){
 }
 function setSnap(valId, deltaId, val, delta, unit="", invert=false){
   const v=document.getElementById(valId), d=document.getElementById(deltaId);
-  if(val==null){ v.textContent="—"; d.textContent="—"; d.style.color="#94a3b8"; return; }
+  if(val==null || isNaN(val)){ v.textContent="—"; d.textContent="—"; d.style.color="#94a3b8"; return; }
   v.textContent = unit==="%" ? val.toFixed(2)+"%" : val.toFixed(2);
-  if(delta==null){ d.textContent="WoW —"; d.style.color="#94a3b8"; return; }
+  if(delta==null || isNaN(delta)){ d.textContent="WoW —"; d.style.color="#94a3b8"; return; }
   const sign = delta>0?"▲":(delta<0?"▼":"→");
   d.textContent = `WoW ${sign} ${unit==="%"?delta.toFixed(2)+"%":delta.toFixed(2)}`;
   const good = invert ? (delta<0) : (delta>0);
@@ -110,44 +119,52 @@ function setSnap(valId, deltaId, val, delta, unit="", invert=false){
 
 /* ====== PLOTS ====== */
 function plotLine(divId,x,y,ytitle){
-  const trace={x,y,mode:'lines',line:{width:2}};
-  const layout={paper_bgcolor:'#12151c',plot_bgcolor:'#12151c',margin:{l:45,r:20,t:10,b:30},
-    xaxis:{gridcolor:'#1f2430',tickfont:{color:'#cbd5e1'}},
-    yaxis:{gridcolor:'#1f2430',tickfont:{color:'#cbd5e1'},title:ytitle,titlefont:{color:'#94a3b8'}},
+  const trace={x,y,mode:"lines",line:{width:2}};
+  const layout={paper_bgcolor:"#12151c",plot_bgcolor:"#12151c",margin:{l:45,r:20,t:10,b:30},
+    xaxis:{gridcolor:"#1f2430",tickfont:{color:"#cbd5e1"}},
+    yaxis:{gridcolor:"#1f2430",tickfont:{color:"#cbd5e1"},title:ytitle,titlefont:{color:"#94a3b8"}},
     showlegend:false};
   Plotly.newPlot(divId,[trace],layout,{displayModeBar:false,responsive:true});
 }
 function plotLines(divId,lines,ytitle){
-  const traces=lines.map(l=>({x:l.x,y:l.y,mode:'lines',name:l.name,line:{width:2}}));
-  const layout={paper_bgcolor:'#12151c',plot_bgcolor:'#12151c',margin:{l:45,r:20,t:10,b:30},
-    xaxis:{gridcolor:'#1f2430',tickfont:{color:'#cbd5e1'}},
-    yaxis:{gridcolor:'#1f2430',tickfont:{color:'#cbd5e1'},title:ytitle,titlefont:{color:'#94a3b8'}},
-    legend:{orientation:'h',y:-0.2,font:{color:'#cbd5e1'}}};
+  const traces=lines.map(l=>({x:l.x,y:l.y,mode:"lines",name:l.name,line:{width:2}}));
+  const layout={paper_bgcolor:"#12151c",plot_bgcolor:"#12151c",margin:{l:45,r:20,t:10,b:30},
+    xaxis:{gridcolor:"#1f2430",tickfont:{color:"#cbd5e1"}},
+    yaxis:{gridcolor:"#1f2430",tickfont:{color:"#cbd5e1"},title:ytitle,titlefont:{color:"#94a3b8"}},
+    legend:{orientation:"h",y:-0.2,font:{color:"#cbd5e1"}}};
   Plotly.newPlot(divId,traces,layout,{displayModeBar:false,responsive:true});
 }
 
-/* ====== FETCHERS (ใช้ multiproxy) ====== */
+/* ====== LIVE FETCHERS (fallback) ====== */
 async function fetchFredSeries(id){
   const url=`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`;
   const {header,rows}=await fetchCSV(url);
-  const di=header.indexOf("DATE"), vi=header.indexOf(id);
+  const di=dateCol(header), vi=header.indexOf(id);
+  if(di<0 || vi<0) throw new Error("Bad FRED header: "+header.join(","));
   const x=[],y=[]; for(const r of rows){ x.push(r[di]); y.push(r[vi]==="."?null:+r[vi]); }
   return {x,y};
 }
 async function fetchNFCI(){
-  const url="https://www.chicagofed.org/~/media/publications/nfci/advanced/download-data/nfci.csv";
+  const url="https://www.chicagofed.org/~/media/publications/nfci/nfci-data-series-csv.csv";
   const {header,rows}=await fetchCSV(url);
-  const di=header.findIndex(h=>h.toLowerCase().includes("date"));
+  const di=dateCol(header);
   const ni=header.findIndex(h=>h.toUpperCase()==="NFCI");
   const ai=header.findIndex(h=>h.toUpperCase()==="ANFCI");
-  const x=[],yN=[],yA=[]; for(const r of rows){ if(r[di]){ x.push(r[di]); yN.push(r[ni]?+r[ni]:null); yA.push(r[ai]?+r[ai]:null); } }
+  if(di<0 || ni<0) throw new Error("Bad NFCI header: "+header.join(","));
+  const x=[],yN=[],yA=[];
+  for(const r of rows){
+    if(!r[di]) continue;
+    x.push(normalizeDate(r[di]));
+    yN.push(r[ni]?+r[ni]:null);
+    yA.push(ai>=0 && r[ai]?+r[ai]:null);
+  }
   return {x,yN,yA};
 }
 async function fetchDXYYahoo(){
   const txt = await fetchTextViaAny("https://query1.finance.yahoo.com/v7/finance/quote?symbols=DX-Y.NYB,DX=F");
   const js = JSON.parse(txt);
   const arr=(js.quoteResponse&&js.quoteResponse.result)||[];
-  for(const q of arr){ if(q && typeof q.regularMarketPrice==='number') return q.regularMarketPrice; }
+  for(const q of arr){ if(q && typeof q.regularMarketPrice==="number") return q.regularMarketPrice; }
   throw new Error("No DXY price");
 }
 async function fetchUSDBroadFred(){
@@ -156,58 +173,111 @@ async function fetchUSDBroadFred(){
   return {last:w.last,delta:w.delta};
 }
 
+function renderFromSeries(series, updatedLabel, sourceLabel){
+  const {vix, real, hy, bbb, nfci, dxy} = series;
+
+  plotLine("chart_vix", vix.x.slice(-200), vix.y.slice(-200), "ดัชนี");
+  const vixW = (vix.last!=null) ? {last:vix.last, delta:vix.delta} : computeWoW(vix.x,vix.y);
+  setSnap("snap_vix","snap_vix_delta", vixW.last, vixW.delta);
+
+  plotLine("chart_real", real.x.slice(-200), real.y.slice(-200), "%");
+  const realW = (real.last!=null) ? {last:real.last, delta:real.delta} : computeWoW(real.x,real.y);
+  setSnap("snap_real","snap_real_delta", realW.last, realW.delta, "%");
+
+  plotLines("chart_oas",[
+    {name:"HY OAS", x:hy.x.slice(-200), y:hy.y.slice(-200)},
+    {name:"BBB OAS", x:bbb.x.slice(-200), y:bbb.y.slice(-200)}
+  ], "OAS (%)");
+  const hyW = (hy.last!=null) ? {last:hy.last, delta:hy.delta} : computeWoW(hy.x,hy.y);
+  const bbbW = (bbb.last!=null) ? {last:bbb.last, delta:bbb.delta} : computeWoW(bbb.x,bbb.y);
+  setSnap("snap_hy","snap_hy_delta", hyW.last, hyW.delta, "%");
+  setSnap("snap_bbb","snap_bbb_delta", bbbW.last, bbbW.delta, "%");
+
+  plotLines("chart_nfci",[
+    {name:"NFCI", x:nfci.x.slice(-260), y:nfci.yN.slice(-260)},
+    {name:"ANFCI", x:nfci.x.slice(-260), y:nfci.yA.slice(-260)}
+  ], "ดัชนี");
+  const nW=computeWoW(nfci.x,nfci.yN); setSnap("snap_nfci","snap_nfci_delta", nW.last, nW.delta, "", true);
+  const aW=computeWoW(nfci.x,nfci.yA); setSnap("snap_anfci","snap_anfci_delta", aW.last, aW.delta, "", true);
+
+  if(dxy && dxy.last!=null){
+    if(dxy.source && dxy.source !== "yahoo"){
+      document.getElementById("label_dxy").textContent="USD Broad (FRED)";
+    } else {
+      document.getElementById("label_dxy").textContent="DXY";
+    }
+    document.getElementById("snap_dxy").textContent=Number(dxy.last).toFixed(2);
+    const dl=document.getElementById("snap_dxy_delta");
+    if(dxy.delta==null){ dl.textContent="WoW —"; dl.style.color="#94a3b8"; }
+    else{
+      const s=dxy.delta>0?"▲":(dxy.delta<0?"▼":"→");
+      dl.textContent=`WoW ${s} ${dxy.delta.toFixed(2)}`;
+      dl.style.color = dxy.delta>0 ? "#22c55e" : (dxy.delta===0?"#e5e7eb":"#ef4444");
+    }
+  } else {
+    document.getElementById("snap_dxy").textContent="—";
+    document.getElementById("snap_dxy_delta").textContent="—";
+  }
+
+  document.getElementById("updated").textContent = updatedLabel;
+  document.getElementById("source_badge").textContent = sourceLabel;
+}
+
+async function loadFromDataJson(){
+  const r = await fetch("data.json", {cache:"no-store"});
+  if(!r.ok) throw new Error("data.json HTTP "+r.status);
+  const data = await r.json();
+  if(!data.series || !data.series.vix || !data.series.vix.x || !data.series.vix.x.length){
+    throw new Error("data.json incomplete");
+  }
+  // Reject obviously broken payloads (all-null dates from old bug)
+  if(data.series.vix.x.every(v => v==null)) throw new Error("data.json has null dates");
+  const when = data.updated ? new Date(data.updated).toLocaleString() : new Date().toLocaleString();
+  renderFromSeries(data.series, when, "data.json");
+}
+
+async function loadLive(){
+  const vix=await fetchFredSeries("VIXCLS");
+  const real=await fetchFredSeries("DFII10");
+  const hy=await fetchFredSeries("BAMLH0A0HYM2");
+  const bbb=await fetchFredSeries("BAMLC0A4CBBB");
+  const nfci=await fetchNFCI();
+  let dxy;
+  try{
+    const p=await fetchDXYYahoo();
+    dxy={last:p, delta:null, source:"yahoo"};
+  }catch(_){
+    const fb=await fetchUSDBroadFred();
+    dxy={last:fb.last, delta:fb.delta, source:"DTWEXBGS"};
+  }
+  const vixW=computeWoW(vix.x,vix.y);
+  const realW=computeWoW(real.x,real.y);
+  const hyW=computeWoW(hy.x,hy.y);
+  const bbbW=computeWoW(bbb.x,bbb.y);
+  renderFromSeries({
+    vix:{...vix, last:vixW.last, delta:vixW.delta},
+    real:{...real, last:realW.last, delta:realW.delta},
+    hy:{...hy, last:hyW.last, delta:hyW.delta},
+    bbb:{...bbb, last:bbbW.last, delta:bbbW.delta},
+    nfci, dxy
+  }, new Date().toLocaleString(), "live");
+}
+
 /* ====== MAIN ====== */
 async function drawAll(){
   document.getElementById("updated").textContent="กำลังดึงข้อมูล…";
+  document.getElementById("source_badge").textContent="กำลังโหลด";
   try{
-    const vix=await fetchFredSeries("VIXCLS");
-    plotLine("chart_vix", vix.x.slice(-200), vix.y.slice(-200), "ดัชนี");
-    const vixW=computeWoW(vix.x,vix.y);
-    setSnap("snap_vix","snap_vix_delta", vixW.last, vixW.delta, "", false);
-
-    const real=await fetchFredSeries("DFII10");
-    plotLine("chart_real", real.x.slice(-200), real.y.slice(-200), "%");
-    const realW=computeWoW(real.x,real.y);
-    setSnap("snap_real","snap_real_delta", realW.last, realW.delta, "%", false);
-
-    const hy=await fetchFredSeries("BAMLH0A0HYM2");
-    const bbb=await fetchFredSeries("BAMLC0A4CBBB");
-    plotLines("chart_oas",[
-      {name:"HY OAS", x:hy.x.slice(-200), y:hy.y.slice(-200)},
-      {name:"BBB OAS", x:bbb.x.slice(-200), y:bbb.y.slice(-200)}
-    ], "OAS (%)");
-    const hyW=computeWoW(hy.x,hy.y); setSnap("snap_hy","snap_hy_delta", hyW.last, hyW.delta, "%", false);
-    const bbbW=computeWoW(bbb.x,bbb.y); setSnap("snap_bbb","snap_bbb_delta", bbbW.last, bbbW.delta, "%", false);
-
-    const fc=await fetchNFCI();
-    plotLines("chart_nfci",[
-      {name:"NFCI", x:fc.x.slice(-260), y:fc.yN.slice(-260)},
-      {name:"ANFCI", x:fc.x.slice(-260), y:fc.yA.slice(-260)}
-    ], "ดัชนี");
-    const nW=computeWoW(fc.x,fc.yN); setSnap("snap_nfci","snap_nfci_delta", nW.last, nW.delta, "", true);
-    const aW=computeWoW(fc.x,fc.yA); setSnap("snap_anfci","snap_anfci_delta", aW.last, aW.delta, "", true);
-
+    await loadFromDataJson();
+  }catch(e1){
+    console.warn("data.json failed, trying live…", e1);
     try{
-      const p=await fetchDXYYahoo();
-      document.getElementById("snap_dxy").textContent=p.toFixed(2);
-      const dl=document.getElementById("snap_dxy_delta"); dl.textContent="—"; dl.style.color="#94a3b8";
-    }catch(_){
-      try{
-        const fb=await fetchUSDBroadFred();
-        document.getElementById("label_dxy").textContent="USD Broad (FRED)";
-        document.getElementById("snap_dxy").textContent=fb.last!=null?fb.last.toFixed(2):"—";
-        const dl=document.getElementById("snap_dxy_delta");
-        if(fb.delta==null){ dl.textContent="WoW —"; dl.style.color="#94a3b8"; }
-        else{ const s=fb.delta>0?"▲":(fb.delta<0?"▼":"→");
-          dl.textContent=`WoW ${s} ${fb.delta.toFixed(2)}`;
-          dl.style.color = fb.delta>0 ? "#22c55e" : (fb.delta===0?"#e5e7eb":"#ef4444"); }
-      }catch(e){ document.getElementById("snap_dxy").textContent="—"; document.getElementById("snap_dxy_delta").textContent="—"; }
+      await loadLive();
+    }catch(e2){
+      console.error(e2);
+      document.getElementById("updated").textContent="ดึงข้อมูลไม่สำเร็จ (ตรวจ data.json / เน็ต)";
+      document.getElementById("source_badge").textContent="error";
     }
-
-    document.getElementById("updated").textContent=new Date().toLocaleString();
-  }catch(err){
-    console.error(err);
-    document.getElementById("updated").textContent="ดึงข้อมูลไม่สำเร็จ (ตรวจ proxy/เน็ต)";
   }
 }
 drawAll();
