@@ -11,23 +11,43 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Use Node 20
-        uses: actions/setup-node@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Generate data.json
         run: |
           echo "Node version:" && node -v
           cat > build_data.mjs <<'EOF'
-          import { writeFile } from 'fs/promises';
+          import { writeFile, readFile } from 'fs/promises';
+
+          const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+          const TRIES = +(process.env.FETCH_TRIES || 3);
 
           async function fetchText(url){
-            const r = await fetch(url, { headers: { 'User-Agent': 'MacroDashboardTH/1.0' } });
-            if(!r.ok) throw new Error(`Fetch ${url} ${r.status}`);
-            return await r.text();
+            let lastErr;
+            for(let a = 1; a <= TRIES; a++){
+              try{
+                const r = await fetch(url, { headers: {
+                  'User-Agent': UA,
+                  'Accept': 'text/csv,text/plain,*/*;q=0.8',
+                  'Accept-Language': 'en-US,en;q=0.9'
+                }});
+                if(!r.ok) throw new Error(`Fetch ${url} ${r.status}`);
+                return await r.text();
+              }catch(e){
+                lastErr = e;
+                if(a < TRIES){
+                  const wait = a * 10;
+                  console.warn(`Attempt ${a}/${TRIES} failed: ${e.message} - retry in ${wait}s`);
+                  await new Promise(res => setTimeout(res, wait * 1000));
+                }
+              }
+            }
+            throw lastErr;
           }
           function parseCSV(text){
             const lines = text.trim().split(/\r?\n/);
@@ -88,7 +108,7 @@ jobs:
           }
           async function dxy(){
             try{
-              const j = await (await fetch("https://query1.finance.yahoo.com/v7/finance/quote?symbols=DX-Y.NYB,DX=F")).json();
+              const j = await (await fetch("https://query1.finance.yahoo.com/v7/finance/quote?symbols=DX-Y.NYB,DX=F", { headers: { 'User-Agent': UA } })).json();
               const arr = j?.quoteResponse?.result || [];
               for(const q of arr){ if(typeof q.regularMarketPrice === 'number') return {last:q.regularMarketPrice, delta:null, source:'yahoo'}; }
             }catch(e){}
@@ -96,20 +116,44 @@ jobs:
             return { last: s.last, delta: s.delta, source: 'DTWEXBGS' };
           }
 
-          (async ()=>{
-            const vix  = await fredSeries('VIXCLS');
-            const real = await fredSeries('DFII10');
-            const hy   = await fredSeries('BAMLH0A0HYM2');
-            const bbb  = await fredSeries('BAMLC0A4CBBB');
-            const fc   = await nfci();
-            const usd  = await dxy();
+          // Previous data.json (from checkout) = fallback when a source is down/blocked
+          let prev = null;
+          try { prev = JSON.parse(await readFile('data.json', 'utf8')); } catch {}
 
-            const data = {
-              updated: new Date().toISOString(),
-              series: { vix, real, hy, bbb, nfci: fc, dxy: usd }
-            };
+          async function withFallback(name, fn){
+            try{
+              const fresh = await fn();
+              return { ...fresh, stale: false };
+            }catch(e){
+              const old = prev?.series?.[name];
+              if(old){
+                console.warn(`WARN: ${name} failed (${e.message}) - reusing previous values`);
+                return { ...old, stale: true };
+              }
+              throw new Error(`${name} failed and no previous data.json to fall back on: ${e.message}`);
+            }
+          }
+
+          (async ()=>{
+            const vix  = await withFallback('vix',  () => fredSeries('VIXCLS'));
+            const real = await withFallback('real', () => fredSeries('DFII10'));
+            const hy   = await withFallback('hy',   () => fredSeries('BAMLH0A0HYM2'));
+            const bbb  = await withFallback('bbb',  () => fredSeries('BAMLC0A4CBBB'));
+            const fc   = await withFallback('nfci', nfci);
+            const usd  = await withFallback('dxy',  dxy);
+
+            const series = { vix, real, hy, bbb, nfci: fc, dxy: usd };
+            const all = Object.values(series);
+            const staleCount = all.filter(s => s.stale).length;
+
+            if(staleCount === all.length){
+              console.log('All sources failed - keeping existing data.json unchanged');
+              process.exit(0);
+            }
+
+            const data = { updated: new Date().toISOString(), series };
             await writeFile('data.json', JSON.stringify(data));
-            console.log('Wrote data.json', data.updated, 'vix', vix.last, 'nfci', fc.x.length);
+            console.log(`Wrote data.json ${data.updated} (fresh: ${all.length-staleCount}/${all.length}) vix ${vix.last} nfci ${fc.x.length}`);
           })().catch(e=>{ console.error(e); process.exit(1); });
           EOF
 
